@@ -11,64 +11,100 @@ const DATS_API_RELTYPE = 'https://archive.org/services/purl/purl/datprotocol/spe
 // exported api
 // =
 
-module.exports = async function (hostUrl) {
-  var psaDoc = await request(hostUrl, 'GET', '/.well-known/psa')
-  return new DatPinningServiceClient(hostUrl, psaDoc)
+exports.createClient = function (hostUrl, login, cb) {
+  if (typeof login === 'function') {
+    // login is optional
+    cb = login
+    login = null
+  }
+
+  var client = new DatPinningServiceClient(hostUrl)
+  client.fetchPSADoc(function (err) {
+    if (err) return cb(err)
+    if (!login) return cb(null, client)
+    client.login(login.username, login.password, function (err) {
+      if (err) return cb(err)
+      cb(null, client)
+    })
+  })
 }
 
 class DatPinningServiceClient {
   constructor (hostUrl, psaDoc) {
     this.hostUrl = hostUrl.replace(/\/$/, '') // strip ending slash
-    this.psaDoc = psaDoc
-    this.accountsApiBaseUrl = getBaseUrl(hostUrl, psaDoc, ACCOUNT_API_RELTYPE, 'accounts')
-    this.datsApiBaseUrl = getBaseUrl(hostUrl, psaDoc, DATS_API_RELTYPE, 'dats')
+    this.psaDoc = null
+    this.accountsApiBaseUrl = null
+    this.datsApiBaseUrl = null
     this.sessionToken = null
+    if (psaDoc) this.setPSADoc(psaDoc)
   }
 
   get hasSession () {
     return !!this.sessionToken
   }
 
-  async login (username, password) {
-    var res = await request(this.accountsApiBaseUrl, 'POST', '/login', null, {username, password})
-    if (res.sessionToken) {
-      this.sessionToken = res.sessionToken
-    }
-    return res
+  setSession (token) {
+    this.sessionToken = token
   }
 
-  async logout () {
-    var res = request(this.accountsApiBaseUrl, 'POST', '/logout', this.sessionToken)
+  fetchPSADoc (cb) {
+    var self = this
+    request(this.hostUrl, 'GET', '/.well-known/psa')(function (err, doc) {
+      if (err) return cb(err)
+      try { self.setPSADoc(doc) } catch (e) { return cb(e) }
+      cb()
+    })
+  }
+
+  setPSADoc (psaDoc) {
+    this.psaDoc = psaDoc
+    this.accountsApiBaseUrl = getBaseUrl(this.hostUrl, psaDoc, ACCOUNT_API_RELTYPE, 'accounts')
+    this.datsApiBaseUrl = getBaseUrl(this.hostUrl, psaDoc, DATS_API_RELTYPE, 'dats')
+  }
+
+  login (username, password, cb) {
+    var self = this
+    request(this.accountsApiBaseUrl, 'POST', '/login', null, {username, password})(function (err, res) {
+      if (err) return cb(err)
+      if (res.sessionToken) {
+        self.setSession(res.sessionToken)
+      }
+      cb(null, res)
+    })
+  }
+
+  logout (cb) {
+    request(this.accountsApiBaseUrl, 'POST', '/logout', this.sessionToken)(cb)
     this.sessionToken = null
-    return res
   }
 
-  async getAccount () {
-    return request(this.accountsApiBaseUrl, 'GET', '/account', this.sessionToken)
+  getAccount (cb) {
+    request(this.accountsApiBaseUrl, 'GET', '/account', this.sessionToken)(cb)
   }
 
-  async listDats () {
-    return request(this.datsApiBaseUrl, 'GET', '/', this.sessionToken)
+  listDats (cb) {
+    request(this.datsApiBaseUrl, 'GET', '/', this.sessionToken)(cb)
   }
 
-  async addDat ({url, name, domains}) {
-    return request(this.datsApiBaseUrl, 'POST', '/add', this.sessionToken, {url, name, domains})
+  addDat ({url, name, domains}, cb) {
+    request(this.datsApiBaseUrl, 'POST', '/add', this.sessionToken, {url, name, domains})(cb)
   }
 
-  async removeDat (url) {
-    return request(this.datsApiBaseUrl, 'POST', '/remove', this.sessionToken, {url})
+  removeDat (url, cb) {
+    request(this.datsApiBaseUrl, 'POST', '/remove', this.sessionToken, {url})(cb)
   }
 
-  async getDat (key) {
+  getDat (key, cb) {
     key = urlToKey(key)
-    return request(this.datsApiBaseUrl, 'GET', joinPaths('/item', key), this.sessionToken)
+    request(this.datsApiBaseUrl, 'GET', joinPaths('/item', key), this.sessionToken)(cb)
   }
 
-  async updateDat (key, {name, domains}) {
+  updateDat (key, {name, domains}, cb) {
     key = urlToKey(key)
-    return request(this.datsApiBaseUrl, 'POST', joinPaths('/item', key), this.sessionToken, {name, domains})
+    request(this.datsApiBaseUrl, 'POST', joinPaths('/item', key), this.sessionToken, {name, domains})(cb)
   }
 }
+exports.DatPinningServiceClient = DatPinningServiceClient
 
 // internal methods
 // =
@@ -96,11 +132,11 @@ function urlToKey (url) {
   if (match) {
     return match[0].toLowerCase()
   }
-  throw new Error(`Invalid dat key: ${url}`)
+  return url
 }
 
 function request (baseUrl, method, resourcePath, session, body) {
-  return new Promise((resolve, reject) => {
+  return function (cb) {
     var opts = {method, headers: {}}
 
     // parse URL
@@ -141,16 +177,16 @@ function request (baseUrl, method, resourcePath, session, body) {
           var err = new Error(resBody && resBody.message ? resBody.message : 'Request failed')
           err.statusCode = res.statusCode
           err.responseBody = resBody
-          reject(err)
+          cb(err)
         } else {
-          resolve(resBody)
+          cb(null, resBody)
         }
       })
     })
-    req.on('error', reject)
+    req.on('error', cb)
     if (body) {
       req.write(body)
     }
     req.end()
-  })
+  }
 }

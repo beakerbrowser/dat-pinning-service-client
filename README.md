@@ -7,23 +7,59 @@ Client API for Dat pinning services. Conforms to the [Dat Pinning Service API](#
 To create a client:
 
 ```js
-const createClient = require('dat-pinning-service-client')
-var client = await createClient('https://my-pinning-service.com')
+const {createClient} = require('dat-pinning-service-client')
+createClient('https://my-pinning-service.com', {username: 'bob', password: 'hunter2'}, (err, client) => {
+  if (err) throw err
+  // ...
+})
 ```
 
-All of the methods return the response body and throw if a non-2xx response is received.
+Alternatively:
+
+```js
+const {DatPinningServiceClient} = require('dat-pinning-service-client')
+var client = new DatPinningServiceClient('https://my-pinning-service.com')
+client.fetchPSADoc(err => {
+  if (err) throw err
+  client.login('bob', 'hunter2', err => {
+    if (err) throw err
+    // ...
+  })
+})
+
+All of the methods provide the response body and give an error if a non-2xx response is received.
 The errors will have the `.statusCode` and `.responseBody` set.
 
-### client.login(username, password)
+### createClient(hostUrl[, login], cb)
+
+Create a new client object.
+Will fetch the PSA document and run login if the creds are specified.
+
+### new DatPinningServiceClient(hostUrl[, psaDoc])
+
+Create a new client object.
+You can optionally provide the PSA document, which is useful if you've cached it from a previous session.
+
+### client.setPSADoc(psaDoc)
+
+Manually set the PSA document (useful if you've cached it from a previous session).
+You can find the PSA doc on `client.psaDoc`.
+
+### client.setSession(token)
+
+Manually set the session token (useful if you've cached it from a previous session).
+You can find the token on `client.sessionToken`.
+
+### client.login(username, password, cb)
 
 Start a session.
 You can check `client.hasSession` to see if a session token has been stored.
 
-### client.logout()
+### client.logout(cb)
 
 End the session.
 
-### client.getAccount()
+### client.getAccount(cb)
 
 Get the account info for the current session.
 Returns
@@ -39,7 +75,7 @@ Returns
 }
 ```
 
-### client.listDats()
+### client.listDats(cb)
 
 Get the dats pinned by the user.
 Returns
@@ -56,7 +92,7 @@ Returns
 }
 ```
 
-### client.addDat({url, name, domains})
+### client.addDat({url, name, domains}, cb)
 
 Pin a dat.
 Params:
@@ -65,14 +101,14 @@ Params:
  - `name` String, optional shortname for the archive
  - `domains` Array of Strings, optional list of domain-names the dat should be made available at
 
-### client.removeDat(url)
+### client.removeDat(url, cb)
 
 Unpin a dat.
 Params:
 
  - `url` String, required url/key of the dat
 
-### client.getDat(url)
+### client.getDat(url, cb)
 
 Get a pinned dat.
 Returns:
@@ -87,7 +123,7 @@ Returns:
 }
 ```
 
-### client.updateDat(url, {name, domains})
+### client.updateDat(url, {name, domains}, cb)
 
 Update a pinned dat.
 Params:

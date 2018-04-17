@@ -2,7 +2,7 @@ const test = require('ava')
 const fs = require('fs')
 const tempy = require('tempy')
 const Homebase = require('@beaker/homebase')
-const createClient = require('./')
+const {createClient} = require('./')
 
 var portCounter = 10000
 function createServer (configData) {
@@ -20,27 +20,27 @@ function createServer (configData) {
   return server
 }
 
-test('login fails on wrong username or password', async t => {
+test.cb('login fails on wrong username or password', t => {
   var server = createServer(`
 webapi:
   username: bob
   password: hunter2
 `)
-  var client = await createClient(server.hostUrl)
+  createClient(server.hostUrl, (err, client) => {
+    if (err) throw err
 
-  // wrong password fails
-  try {
-    await client.login('bob', 'hunter3')
-    t.fail('Should have thrown')
-  } catch (e) {
-    t.deepEqual(e.statusCode, 403)
-  }
+    // wrong password fails
+    client.login('bob', 'hunter3', err => {
+      t.truthy(err)
+      t.deepEqual(err.statusCode, 403)
 
-  server.close()
+      server.close()
+      t.end()
+    })
+  })
 })
 
-test('can get account info', async t => {
-  var res
+test.cb('can get account info', t => {
   var server = createServer(`
 domain: test.com
 webapi:
@@ -50,38 +50,42 @@ dats:
   - url: dat://1f968afe867f06b0d344c11efc23591c7f8c5fb3b4ac938d6000f330f6ee2a03/
     name: mysite
 `)
-  var client = await createClient(server.hostUrl)
+  createClient(server.hostUrl, {username: 'bob', password: 'hunter2'}, (err, client) => {
+    if (err) throw err
+    t.truthy(client.hasSession)
 
-  // login
-  res = await client.login('bob', 'hunter2')
-  t.truthy(res.sessionToken)
-  t.truthy(client.hasSession)
+    // can get account info
+    client.getAccount((err, res) => {
+      if (err) throw err
+      t.deepEqual(res.username, 'bob')
 
-  // can get account info
-  res = await client.getAccount()
-  t.deepEqual(res.username, 'bob')
+      // can list dats
+      client.listDats((err, res) => {
+        if (err) throw err
+        t.deepEqual(res.items, [
+          {
+            url: 'dat://1f968afe867f06b0d344c11efc23591c7f8c5fb3b4ac938d6000f330f6ee2a03/',
+            name: 'mysite',
+            additionalUrls: [
+              'dat://mysite.test.com'
+            ]
+          }
+        ])
 
-  // can list dats
-  res = await client.listDats()
-  t.deepEqual(res.items, [
-    {
-      url: 'dat://1f968afe867f06b0d344c11efc23591c7f8c5fb3b4ac938d6000f330f6ee2a03/',
-      name: 'mysite',
-      additionalUrls: [
-        'dat://mysite.test.com'
-      ]
-    }
-  ])
+        // logout
+        client.logout(err => {
+          if (err) throw err
+          t.falsy(client.hasSession)
 
-  // logout
-  await client.logout()
-  t.falsy(client.hasSession)
-
-  server.close()
+          server.close()
+          t.end()
+        })
+      })
+    })
+  })
 })
 
-test('add & remove dats', async t => {
-  var res
+test.cb('add & remove dats', t => {
   var server = createServer(`
 domain: test.com
 webapi:
@@ -91,83 +95,93 @@ dats:
   - url: dat://1f968afe867f06b0d344c11efc23591c7f8c5fb3b4ac938d6000f330f6ee2a03/
     name: mysite
 `)
-  var client = await createClient(server.hostUrl)
+  createClient(server.hostUrl, {username: 'bob', password: 'hunter2'}, (err, client) => {
+    if (err) throw err
+    t.truthy(client.hasSession)
 
-  // login
-  res = await client.login('bob', 'hunter2')
-  t.truthy(res.sessionToken)
-  t.truthy(client.hasSession)
-
-  // add dat
-  await client.addDat({
-    url: 'dat://868d6000f330f6967f06b3ee2a03811efc23591afe0d344cc7f8c5fb3b4ac91f/',
-    name: 'othersite',
-    domains: ['othersite.com']
-  })
-
-  // get dat (verify)
-  res = await client.getDat('868d6000f330f6967f06b3ee2a03811efc23591afe0d344cc7f8c5fb3b4ac91f')
-  t.deepEqual(res, {
-    url: 'dat://868d6000f330f6967f06b3ee2a03811efc23591afe0d344cc7f8c5fb3b4ac91f/',
-    name: 'othersite',
-    additionalUrls: [
-      'dat://othersite.test.com',
-      'dat://othersite.com'
-    ]
-  })
-
-  // update dat
-  await client.updateDat('868d6000f330f6967f06b3ee2a03811efc23591afe0d344cc7f8c5fb3b4ac91f', {
-    domains: ['othersite.com', 'other-site.com']
-  })
-
-  // get dat (verify)
-  res = await client.getDat('868d6000f330f6967f06b3ee2a03811efc23591afe0d344cc7f8c5fb3b4ac91f')
-  t.deepEqual(res, {
-    url: 'dat://868d6000f330f6967f06b3ee2a03811efc23591afe0d344cc7f8c5fb3b4ac91f/',
-    name: 'othersite',
-    additionalUrls: [
-      'dat://othersite.test.com',
-      'dat://othersite.com',
-      'dat://other-site.com'
-    ]
-  })
-
-  // list dats
-  res = await client.listDats()
-  t.deepEqual(res.items, [
-    {
-      url: 'dat://1f968afe867f06b0d344c11efc23591c7f8c5fb3b4ac938d6000f330f6ee2a03/',
-      name: 'mysite',
-      additionalUrls: [
-        'dat://mysite.test.com'
-      ]
-    },
-    {
+    // add dat
+    client.addDat({
       url: 'dat://868d6000f330f6967f06b3ee2a03811efc23591afe0d344cc7f8c5fb3b4ac91f/',
       name: 'othersite',
-      additionalUrls: [
-        'dat://othersite.test.com',
-        'dat://othersite.com',
-        'dat://other-site.com'
-      ]
-    }
-  ])
+      domains: ['othersite.com']
+    }, (err) => {
+      if (err) throw err
 
-  // remove dat
-  await client.removeDat('868d6000f330f6967f06b3ee2a03811efc23591afe0d344cc7f8c5fb3b4ac91f')
+      // get dat (verify)
+      client.getDat('868d6000f330f6967f06b3ee2a03811efc23591afe0d344cc7f8c5fb3b4ac91f', (err, res) => {
+        if (err) throw err
+        t.deepEqual(res, {
+          url: 'dat://868d6000f330f6967f06b3ee2a03811efc23591afe0d344cc7f8c5fb3b4ac91f/',
+          name: 'othersite',
+          additionalUrls: [
+            'dat://othersite.test.com',
+            'dat://othersite.com'
+          ]
+        })
 
-  // list dats
-  res = await client.listDats()
-  t.deepEqual(res.items, [
-    {
-      url: 'dat://1f968afe867f06b0d344c11efc23591c7f8c5fb3b4ac938d6000f330f6ee2a03/',
-      name: 'mysite',
-      additionalUrls: [
-        'dat://mysite.test.com'
-      ]
-    }
-  ])
+        // update dat
+        client.updateDat('868d6000f330f6967f06b3ee2a03811efc23591afe0d344cc7f8c5fb3b4ac91f', {
+          domains: ['othersite.com', 'other-site.com']
+        }, (err) => {
+          if (err) throw err
 
-  server.close()
+          // get dat (verify)
+          client.getDat('868d6000f330f6967f06b3ee2a03811efc23591afe0d344cc7f8c5fb3b4ac91f', (err, res) => {
+            t.deepEqual(res, {
+              url: 'dat://868d6000f330f6967f06b3ee2a03811efc23591afe0d344cc7f8c5fb3b4ac91f/',
+              name: 'othersite',
+              additionalUrls: [
+                'dat://othersite.test.com',
+                'dat://othersite.com',
+                'dat://other-site.com'
+              ]
+            })
+
+            // list dats
+            client.listDats((err, res) => {
+              t.deepEqual(res.items, [
+                {
+                  url: 'dat://1f968afe867f06b0d344c11efc23591c7f8c5fb3b4ac938d6000f330f6ee2a03/',
+                  name: 'mysite',
+                  additionalUrls: [
+                    'dat://mysite.test.com'
+                  ]
+                },
+                {
+                  url: 'dat://868d6000f330f6967f06b3ee2a03811efc23591afe0d344cc7f8c5fb3b4ac91f/',
+                  name: 'othersite',
+                  additionalUrls: [
+                    'dat://othersite.test.com',
+                    'dat://othersite.com',
+                    'dat://other-site.com'
+                  ]
+                }
+              ])
+
+              // remove dat
+              client.removeDat('868d6000f330f6967f06b3ee2a03811efc23591afe0d344cc7f8c5fb3b4ac91f', err => {
+                if (err) throw err
+
+                // list dats
+                client.listDats((err, res) => {
+                  t.deepEqual(res.items, [
+                    {
+                      url: 'dat://1f968afe867f06b0d344c11efc23591c7f8c5fb3b4ac938d6000f330f6ee2a03/',
+                      name: 'mysite',
+                      additionalUrls: [
+                        'dat://mysite.test.com'
+                      ]
+                    }
+                  ])
+
+                  server.close()
+                  t.end()
+                })
+              })
+            })
+          })
+        })
+      })
+    })
+  })
 })
