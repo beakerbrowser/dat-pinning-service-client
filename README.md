@@ -56,7 +56,7 @@ Returns
 }
 ```
 
-### await client.addDat({url, name, domains})
+### client.addDat({url, name, domains})
 
 Pin a dat.
 Params:
@@ -65,14 +65,14 @@ Params:
  - `name` String, optional shortname for the archive
  - `domains` Array of Strings, optional list of domain-names the dat should be made available at
 
-### await client.removeDat(url)
+### client.removeDat(url)
 
 Unpin a dat.
 Params:
 
  - `url` String, required url/key of the dat
 
-### await client.getDat(url)
+### client.getDat(url)
 
 Get a pinned dat.
 Returns:
@@ -87,7 +87,7 @@ Returns:
 }
 ```
 
-### await client.updateDat(url, {name, domains})
+### client.updateDat(url, {name, domains})
 
 Update a pinned dat.
 Params:
