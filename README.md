@@ -14,14 +14,18 @@ var client = await createClient('https://my-pinning-service.com')
 All of the methods return the response body and throw if a non-2xx response is received.
 The errors will have the `.statusCode` and `.responseBody` set.
 
-### client.hasSession: Boolean
+### client.login(username, password)
 
-### await client.login(username, password)
+Start a session.
+You can check `client.hasSession` to see if a session token has been stored.
 
-### await client.logout()
+### client.logout()
 
-### await client.getAccount()
+End the session.
 
+### client.getAccount()
+
+Get the account info for the current session.
 Returns
 
 ```
@@ -35,8 +39,9 @@ Returns
 }
 ```
 
-### await client.listDats()
+### client.listDats()
 
+Get the dats pinned by the user.
 Returns
 
 ```
@@ -53,6 +58,7 @@ Returns
 
 ### await client.addDat({url, name, domains})
 
+Pin a dat.
 Params:
 
  - `url` String, required url/key of the dat
@@ -61,8 +67,14 @@ Params:
 
 ### await client.removeDat(url)
 
+Unpin a dat.
+Params:
+
+ - `url` String, required url/key of the dat
+
 ### await client.getDat(url)
 
+Get a pinned dat.
 Returns:
 
 ```
@@ -77,6 +89,7 @@ Returns:
 
 ### await client.updateDat(url, {name, domains})
 
+Update a pinned dat.
 Params:
 
  - `url` String, required url/key of the dat
