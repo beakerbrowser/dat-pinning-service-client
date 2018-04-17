@@ -1,0 +1,33 @@
+{
+  "name": "dat-pinning-service-client",
+  "version": "1.0.0",
+  "description": "Client API for Dat pinning services",
+  "main": "index.js",
+  "bin": {
+    "dat-pinning-service-client": "bin.js"
+  },
+  "scripts": {
+    "test": "ava -s test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/beakerbrowser/dat-pinning-service-client.git"
+  },
+  "keywords": [
+    "dat",
+    "pin",
+    "pinning",
+    "client"
+  ],
+  "author": "Paul Frazee <pfrazee@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/beakerbrowser/dat-pinning-service-client/issues"
+  },
+  "homepage": "https://github.com/beakerbrowser/dat-pinning-service-client#readme",
+  "devDependencies": {
+    "@beaker/homebase": "^1.1.1",
+    "ava": "^0.25.0",
+    "tempy": "^0.2.1"
+  }
+}
