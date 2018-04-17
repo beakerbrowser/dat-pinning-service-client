@@ -26,6 +26,7 @@ client.fetchPSADoc(err => {
     // ...
   })
 })
+```
 
 All of the methods provide the response body and give an error if a non-2xx response is received.
 The errors will have the `.statusCode` and `.responseBody` set.
