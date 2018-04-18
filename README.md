@@ -1,6 +1,6 @@
 # dat-pinning-service-client
 
-Client API for Dat pinning services. Conforms to the [Dat Pinning Service API](#TODO).
+Client API for Dat pinning services. Conforms to the [Dat Pinning Service API](https://www.datprotocol.com/deps/0003-http-pinning-service-api/).
 
 ## API
 
