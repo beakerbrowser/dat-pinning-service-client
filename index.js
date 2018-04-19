@@ -173,7 +173,7 @@ function request (baseUrl, method, resourcePath, session, body) {
         }
 
         // reject / resolve
-        if (res.statusCode >= 300) {
+        if (res.statusCode >= 400) {
           var err = new Error(resBody && resBody.message ? resBody.message : 'Request failed')
           err.statusCode = res.statusCode
           err.responseBody = resBody
