@@ -1,5 +1,5 @@
 const assert = require('assert')
-const joinPaths = require('path').join
+const joinPaths = require('path').posix.join
 const http = require('http')
 const https = require('https')
 const parseURL = require('url').parse
